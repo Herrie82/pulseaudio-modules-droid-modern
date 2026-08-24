@@ -2068,6 +2068,33 @@ static void stream_update_bt_sco(pa_droid_hw_module *hw_module, const dm_config_
     }
 }
 
+/* Whether this HAL can route with the audio patch API.
+ *
+ * create_audio_patch and release_audio_patch are optional members of
+ * audio_hw_device_t: a HAL that predates the patch API, or simply does not
+ * implement it, leaves them NULL. Calling one then jumps to address zero, which
+ * is what the Pixel 3a's HAL does - SIGSEGV with a null frame under
+ * audio_patch_update_output(), before a single sink appears.
+ *
+ * The set_parameters path this falls back to is already here, selected by the
+ * use_legacy_stream_set_parameters option. Requiring every such device to
+ * declare that option is asking a config file to restate something the HAL has
+ * already told us by leaving the pointer NULL, so ask the HAL instead. The
+ * option stays honoured for HALs that do implement the API but want the legacy
+ * route anyway.
+ */
+static bool audio_patches_supported(pa_droid_hw_module *hw) {
+    pa_assert(hw);
+    pa_assert(hw->device);
+
+    return hw->device->create_audio_patch && hw->device->release_audio_patch;
+}
+
+static bool use_legacy_set_parameters(pa_droid_hw_module *hw) {
+    return pa_droid_option(hw, DM_OPTION_USE_LEGACY_STREAM_SET_PARAMETERS) ||
+           !audio_patches_supported(hw);
+}
+
 static void audio_patch_release(pa_droid_stream *stream) {
     int ret;
 
@@ -2299,7 +2326,7 @@ static int input_stream_set_route(pa_droid_stream *stream, const dm_config_port 
     if (!input->stream)
         goto done;
 
-    if (!pa_droid_option(stream->module, DM_OPTION_USE_LEGACY_STREAM_SET_PARAMETERS)) {
+    if (!use_legacy_set_parameters(stream->module)) {
         audio_patch_release(stream);
         ret = audio_patch_update_input(stream, device_port);
     } else {
@@ -2320,7 +2347,7 @@ int pa_droid_stream_set_route(pa_droid_stream *s, dm_config_port *device_port) {
 
     if (s->output) {
         int ret;
-        if (!pa_droid_option(s->module, DM_OPTION_USE_LEGACY_STREAM_SET_PARAMETERS)) {
+        if (!use_legacy_set_parameters(s->module)) {
             if (pa_droid_stream_is_primary(s))
                 stream_update_bt_sco(s->module, device_port);
 
