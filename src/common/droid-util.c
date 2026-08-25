@@ -1876,8 +1876,11 @@ bool pa_droid_stream_reconfigure_input(pa_droid_stream *stream,
     if (proplist) {
         const char *source;
         /* If audio source is defined in source-output proplist use that instead. */
-        if ((source = pa_proplist_gets(proplist, EXT_PROP_AUDIO_SOURCE)))
-            pa_string_convert_str_to_num(CONV_STRING_AUDIO_SOURCE_FANCY, source, &audio_source);
+        if ((source = pa_proplist_gets(proplist, EXT_PROP_AUDIO_SOURCE))) {
+            uint32_t value;
+            if (pa_string_convert_str_to_num(CONV_STRING_AUDIO_SOURCE_FANCY, source, &value))
+                audio_source = (audio_source_t) value;
+        }
     }
 
     /* Update audio source */
@@ -1940,8 +1943,9 @@ bool pa_droid_stream_reconfigure_input_needed(pa_droid_stream *stream,
 
         /* If audio source is defined in source-output proplist use that instead. */
         if ((source = pa_proplist_gets(proplist, EXT_PROP_AUDIO_SOURCE))) {
-            if (pa_string_convert_str_to_num(CONV_STRING_AUDIO_SOURCE_FANCY, source, &audio_source) &&
-                stream->input->audio_source != audio_source) {
+            uint32_t value;
+            if (pa_string_convert_str_to_num(CONV_STRING_AUDIO_SOURCE_FANCY, source, &value) &&
+                stream->input->audio_source != (audio_source_t) value) {
 
                 reconfigure_needed = true;
                 pa_log_debug("input reconfigure needed: " EXT_PROP_AUDIO_SOURCE " changes");
