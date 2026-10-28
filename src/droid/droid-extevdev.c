@@ -118,6 +118,7 @@ static const char *headphone_ports[] = {
 };
 
 static const char *headset_ports[] = {
+    "output-speaker+wired_headset",
     "output-wired_headset",
     "input-wired_headset",
 };

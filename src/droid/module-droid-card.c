@@ -804,6 +804,11 @@ static pa_hook_result_t port_availability_changed_hook_callback(void *hook_data,
     if (port->available == PA_AVAILABLE_UNKNOWN)
         return PA_HOOK_OK;
 
+    /* Speaker and wired at once is no device of its own: the wired port
+     * next to it tells Android about the plug. */
+    if (pa_startswith(port->name, "output-speaker+"))
+        return PA_HOOK_OK;
+
     const char * verb = port->available == PA_AVAILABLE_YES
         ? AUDIO_PARAMETER_DEVICE_CONNECT
         : AUDIO_PARAMETER_DEVICE_DISCONNECT;
