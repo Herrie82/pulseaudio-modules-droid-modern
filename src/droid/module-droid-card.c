@@ -956,6 +956,25 @@ int pa__init(pa_module *m) {
                            PA_HOOK_NORMAL,
                            port_availability_changed_hook_callback, u);
 
+    /* The jack was read above, before this hook existed, so headphones that
+     * were already plugged in when the module loaded - at boot, or when
+     * PulseAudio restarts - have never been announced, and the HAL keeps
+     * dropping what is written to them until they are pulled and plugged in
+     * again. Announce them now. Only the wired ports, and only when something
+     * is in the jack: droid-card leaves every other port available by default,
+     * and telling the HAL a USB or Bluetooth device is connected would be a
+     * lie. */
+    {
+        pa_device_port *port;
+        void *state;
+
+        PA_HASHMAP_FOREACH(port, u->card->ports, state) {
+            if (port->available == PA_AVAILABLE_YES &&
+                pa_startswith(port->name, "output-wired_"))
+                port_availability_changed_hook_callback(NULL, port, u);
+        }
+    }
+
     pa_card_put(u->card);
 
     return 0;
